@@ -1,174 +1,124 @@
-<!-- Save as index.html -->
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>HEXAFI — Join the Future of DeFi</title>
-
-  <!-- ethers + WalletConnect (CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HEXAFI Join Page</title>
+  <link rel="stylesheet" href="assets/dashboard.css">
   <style>
-    :root{--navy:#0a1020;--sky:#49a6ff;--card:#101a33;--muted:#a0aec0;}
-    body{margin:0;font-family:Inter,system-ui,-apple-system,Roboto,Arial;color:#e9eef7;background:linear-gradient(180deg,var(--navy),#050914);display:flex;align-items:center;justify-content:center;min-height:100vh;padding:18px}
-    .card{width:100%;max-width:420px;background:var(--card);border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,0.6)}
-    header{text-align:center}
-    header img{width:88px;height:auto}
-    h1{margin:8px 0 0 0;font-size:20px}
-    p.tag{color:var(--sky);margin:4px 0 12px;font-size:14px}
-    input,button,select{width:100%;padding:12px;border-radius:10px;border:none;margin-top:8px;font-size:15px}
-    input{background:rgba(255,255,255,0.03);color:inherit}
-    button{background:var(--sky);color:#07203a;font-weight:700}
-    .small{font-size:13px;color:var(--muted);margin-top:10px;text-align:center}
-    .wallet{margin-top:8px;text-align:center;color:var(--muted)}
-    .row{display:flex;gap:8px}
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background: radial-gradient(circle at top, #0a0a24, #050512);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+    .logo {
+      margin-bottom: 20px;
+    }
+    .logo img {
+      width: 160px;
+      height: auto;
+      border-radius: 12px;
+    }
+    h1 {
+      font-size: 28px;
+      color: #00b8ff;
+      margin-bottom: 8px;
+    }
+    p.tagline {
+      color: #aaa;
+      margin-bottom: 30px;
+      font-size: 15px;
+    }
+    .connect-btn {
+      background-color: #007bff;
+      border: none;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      padding: 12px 26px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .connect-btn:hover {
+      background-color: #0096ff;
+      transform: scale(1.05);
+    }
+    .info {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #ccc;
+      word-break: break-all;
+    }
+    footer {
+      position: fixed;
+      bottom: 10px;
+      width: 100%;
+      text-align: center;
+      font-size: 13px;
+      color: #777;
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <header>
-      <img src="assets/hexafi-logo.png" alt="HEXAFI Logo" />
-      <h1>HEXAFI</h1>
-      <p class="tag">Join the Future of DeFi</p>
-    </header>
 
-    <label>Referral (referrer wallet address)</label>
-    <input id="refInput" placeholder="0xReferrerAddress (auto from URL if provided)" />
-
-    <label>Amount (USDT, min 10)</label>
-    <input id="amountInput" type="number" min="10" placeholder="Enter amount (example: 10)" />
-
-    <button id="connectBtn">Connect Wallet</button>
-    <button id="joinBtn" disabled>Join Now</button>
-
-    <div id="walletInfo" class="wallet">Not connected</div>
-    <div class="small">Works with MetaMask, Trust Wallet, SafePal, WalletConnect</div>
+  <!-- 🔹 HEXAFI Logo -->
+  <div class="logo">
+    <img src="assets/hexafi-logo.png" alt="HEXAFI Logo">
   </div>
 
-<script>
-/* ----------------- CONFIG ----------------- */
-const ROI_CONTRACT = "0x2D0d070F56d4Fbc2FafB6a7B261dF348e309A563";
-const USDT_ADDRESS  = "0x55d398326f99059fF775485246999027B3197955"; // BSC USDT
-const HXF_ADDRESS   = "0xeD349036171BBa0E8b412F2EC0D0c6948DE5113B";
-const BSC_RPC_MAP   = {56: "https://bsc-dataseed.binance.org/"};
+  <!-- 🔹 Title -->
+  <h1>Welcome to HEXAFI</h1>
+  <p class="tagline">Decentralized Smart ROI & Referral System</p>
 
-/* minimal ABIs */
-const usdtAbi = [{"name":"approve","type":"function","stateMutability":"nonpayable","inputs":[{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],"outputs":[{"type":"bool"}]}];
-const roiAbi  = [{"name":"join","type":"function","stateMutability":"nonpayable","inputs":[{"name":"_upline","type":"address"},{"name":"_amount","type":"uint256"}],"outputs":[]}];
+  <!-- 🔹 Connect Button -->
+  <button onclick="connectWallet()" class="connect-btn">Connect Wallet</button>
+  <p id="walletAddress" class="info"></p>
 
-const walletConnectPackage = window.WalletConnectProvider;
+  <!-- 🔹 Footer -->
+  <footer>Powered by HEXAFI Smart Contract on BSC</footer>
 
-/* ----------------- UTIL / UI ----------------- */
-function showToast(msg){
-  const t = document.createElement('div');
-  t.style = "position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#071b33;color:#fff;padding:8px 12px;border-radius:10px;z-index:9999";
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(()=>t.remove(), 3000);
-}
-function detectRefFromURL(){
-  try{
-    const u = new URL(location.href);
-    const q = u.searchParams.get('ref') || u.searchParams.get('invitedby');
-    if(q) return q;
-    const parts = u.pathname.split('/').filter(Boolean);
-    if(parts.length){
-      const last = parts[parts.length-1];
-      if(/^0x[a-fA-F0-9]{40}$/.test(last)) return last;
-      if(/^HXF\d+/i.test(last)) return last; // fallback if code used
+  <!-- 🔹 Ethers.js Library -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.min.js"></script>
+
+  <!-- 🔹 Wallet Connect Script -->
+  <script>
+    let provider;
+    let signer;
+    let userAddress = "";
+
+    async function connectWallet() {
+      try {
+        if (window.ethereum == null) {
+          alert("No crypto wallet detected. Please install MetaMask or open in Trust Wallet / SafePal browser.");
+          return;
+        }
+
+        // Request wallet access
+        provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
+
+        // Show connected address
+        const short = userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
+        document.getElementById("walletAddress").innerText = "Connected: " + short;
+
+        console.log("✅ Wallet Connected:", userAddress);
+
+      } catch (err) {
+        console.error(err);
+        alert("Connection failed: " + err.message);
+      }
     }
-  }catch(e){}
-  return "";
-}
+  </script>
 
-/* ----------------- MULTI-WALLET CONNECT ----------------- */
-let app = { rawProvider:null, ethersProvider:null, signer:null, addr:null };
-
-async function unifiedConnect(){
-  // 1) try injected
-  try{
-    if(window.ethereum){
-      app.rawProvider = window.ethereum;
-      await app.rawProvider.request({ method: "eth_requestAccounts" });
-      app.ethersProvider = new ethers.BrowserProvider(app.rawProvider);
-      app.signer = await app.ethersProvider.getSigner();
-      app.addr = await app.signer.getAddress();
-      afterConnected();
-      return;
-    }
-  }catch(e){ console.warn("Injected connect failed", e); }
-
-  // 2) WalletConnect fallback
-  try{
-    const wc = new walletConnectPackage.default({ rpc: BSC_RPC_MAP, chainId: 56, qrcode: true });
-    await wc.enable(); // opens qrcode / deep-link
-    app.rawProvider = wc;
-    app.ethersProvider = new ethers.BrowserProvider(app.rawProvider);
-    app.signer = await app.ethersProvider.getSigner();
-    app.addr = await app.signer.getAddress();
-    app.rawProvider.on && app.rawProvider.on("disconnect", ()=>{ onDisconnected(); });
-    afterConnected();
-    return;
-  }catch(e){
-    console.error("WalletConnect error:", e);
-    alert("Wallet connection canceled or failed.");
-  }
-}
-
-function afterConnected(){
-  document.getElementById('walletInfo').textContent = app.addr.slice(0,6) + "..." + app.addr.slice(-4);
-  document.getElementById('joinBtn').disabled = false;
-  showToast("Connected: " + app.addr.slice(0,6) + "..." + app.addr.slice(-4));
-  // populate ref field from URL if present
-  const autoRef = detectRefFromURL();
-  if(autoRef) document.getElementById('refInput').value = autoRef;
-}
-
-// safe disconnect handler
-function onDisconnected(){
-  document.getElementById('walletInfo').textContent = "Not connected";
-  document.getElementById('joinBtn').disabled = true;
-  showToast("Disconnected");
-}
-
-/* wire connect button */
-document.getElementById('connectBtn').onclick = unifiedConnect;
-
-/* ----------------- JOIN FLOW (SAFE placeholder) ----------------- */
-document.getElementById('joinBtn').onclick = async ()=>{
-  if(!app.signer) return alert("Connect your wallet first.");
-  const ref = document.getElementById('refInput').value.trim();
-  const amt = document.getElementById('amountInput').value.trim();
-  if(!ref || !amt) return alert("Enter referrer address and amount (min 10).");
-
-  // show ready message
-  showToast("Ready to join — SAFE MODE (no tx executed).");
-
-  // ====== TO ENABLE REAL JOIN (UNCOMMENT CAREFULLY) ======
-  // 1) Create contract instances with signer:
-  // const usdt = new ethers.Contract(USDT_ADDRESS, usdtAbi, app.signer);
-  // const roi  = new ethers.Contract(ROI_CONTRACT, roiAbi, app.signer);
-  //
-  // 2) Approve USDT to ROI contract:
-  // await usdt.approve(ROI_CONTRACT, ethers.parseUnits(amt.toString(), 18));
-  //
-  // 3) Call join:
-  // await roi.join(ref, ethers.parseUnits(amt.toString(), 18));
-  //
-  // 4) On success:
-  // showToast("Joined on-chain ✅");
-  //
-  // NOTE: test on testnet first, be sure `ref` is a valid wallet address (0x...), and you have USDT in wallet.
-  // ======================================================
-
-};
-
-/* auto-fill referral if link has it */
-const preRef = detectRefFromURL();
-if(preRef) document.getElementById('refInput').value = preRef;
-
-</script>
 </body>
 </html>

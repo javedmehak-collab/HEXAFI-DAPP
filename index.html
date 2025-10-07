@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HEXAFI Join Page</title>
-  <link rel="stylesheet" href="assets/dashboard.css">
+
   <style>
     body {
       margin: 0;
@@ -18,26 +18,68 @@
       min-height: 100vh;
       text-align: center;
     }
-    .connect-btn {
-      background: #007bff;
-      border: none;
-      color: white;
-      font-size: 16px;
-      font-weight: 600;
-      padding: 12px 26px;
-      border-radius: 10px;
-      cursor: pointer;
+    .logo img {
+      width: 160px;
+      height: auto;
+      margin-bottom: 20px;
     }
-    .connect-btn:hover { background: #0096ff; }
+    h1 {
+      color: #00b8ff;
+      font-size: 26px;
+      margin-bottom: 8px;
+    }
+    p.tagline {
+      color: #ccc;
+      font-size: 15px;
+      margin-bottom: 30px;
+    }
+    .connect-btn {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .connect-btn:hover {
+      background-color: #0096ff;
+      transform: scale(1.05);
+    }
+    #walletAddress {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #ddd;
+      word-break: break-all;
+    }
+    footer {
+      position: fixed;
+      bottom: 12px;
+      width: 100%;
+      text-align: center;
+      font-size: 13px;
+      color: #666;
+    }
   </style>
 </head>
 
 <body>
+  <!-- HEXAFI Logo -->
+  <div class="logo">
+    <img src="assets/hexafi-logo.png" alt="HEXAFI Logo" />
+  </div>
+
   <h1>Welcome to HEXAFI</h1>
+  <p class="tagline">Decentralized Smart ROI & Referral System</p>
+
   <button onclick="connectWallet()" class="connect-btn">Connect Wallet</button>
   <p id="walletAddress"></p>
 
-  <!-- ✅ Load ethers library before script -->
+  <footer>Powered by HEXAFI Smart Contract on BSC</footer>
+
+  <!-- Ethers.js (Stable UMD build) -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
 
   <script>
@@ -45,7 +87,9 @@
 
     async function connectWallet() {
       if (!window.ethereum) {
-        alert("No crypto wallet found. Please open in MetaMask, Trust Wallet or SafePal browser.");
+        alert(
+          "No crypto wallet detected. Please open this page in MetaMask, Trust Wallet or SafePal browser."
+        );
         return;
       }
 
@@ -55,8 +99,10 @@
         signer = await provider.getSigner();
         userAddress = await signer.getAddress();
 
-        const short = userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
-        document.getElementById("walletAddress").innerText = "Connected: " + short;
+        const short =
+          userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
+        document.getElementById("walletAddress").innerText =
+          "Connected: " + short;
         console.log("✅ Wallet Connected:", userAddress);
       } catch (err) {
         console.error(err);

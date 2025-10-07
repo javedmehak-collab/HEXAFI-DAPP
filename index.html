@@ -18,26 +18,8 @@
       min-height: 100vh;
       text-align: center;
     }
-    .logo {
-      margin-bottom: 20px;
-    }
-    .logo img {
-      width: 160px;
-      height: auto;
-      border-radius: 12px;
-    }
-    h1 {
-      font-size: 28px;
-      color: #00b8ff;
-      margin-bottom: 8px;
-    }
-    p.tagline {
-      color: #aaa;
-      margin-bottom: 30px;
-      font-size: 15px;
-    }
     .connect-btn {
-      background-color: #007bff;
+      background: #007bff;
       border: none;
       color: white;
       font-size: 16px;
@@ -45,80 +27,42 @@
       padding: 12px 26px;
       border-radius: 10px;
       cursor: pointer;
-      transition: all 0.3s ease;
     }
-    .connect-btn:hover {
-      background-color: #0096ff;
-      transform: scale(1.05);
-    }
-    .info {
-      margin-top: 20px;
-      font-size: 14px;
-      color: #ccc;
-      word-break: break-all;
-    }
-    footer {
-      position: fixed;
-      bottom: 10px;
-      width: 100%;
-      text-align: center;
-      font-size: 13px;
-      color: #777;
-    }
+    .connect-btn:hover { background: #0096ff; }
   </style>
 </head>
+
 <body>
-
-  <!-- 🔹 HEXAFI Logo -->
-  <div class="logo">
-    <img src="assets/hexafi-logo.png" alt="HEXAFI Logo">
-  </div>
-
-  <!-- 🔹 Title -->
   <h1>Welcome to HEXAFI</h1>
-  <p class="tagline">Decentralized Smart ROI & Referral System</p>
-
-  <!-- 🔹 Connect Button -->
   <button onclick="connectWallet()" class="connect-btn">Connect Wallet</button>
-  <p id="walletAddress" class="info"></p>
+  <p id="walletAddress"></p>
 
-  <!-- 🔹 Footer -->
-  <footer>Powered by HEXAFI Smart Contract on BSC</footer>
+  <!-- ✅ Load ethers library before script -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
 
-  <!-- 🔹 Ethers.js Library -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.min.js"></script>
-
-  <!-- 🔹 Wallet Connect Script -->
   <script>
-    let provider;
-    let signer;
-    let userAddress = "";
+    let provider, signer, userAddress;
 
     async function connectWallet() {
-      try {
-        if (window.ethereum == null) {
-          alert("No crypto wallet detected. Please install MetaMask or open in Trust Wallet / SafePal browser.");
-          return;
-        }
+      if (!window.ethereum) {
+        alert("No crypto wallet found. Please open in MetaMask, Trust Wallet or SafePal browser.");
+        return;
+      }
 
-        // Request wallet access
+      try {
         provider = new ethers.BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         signer = await provider.getSigner();
         userAddress = await signer.getAddress();
 
-        // Show connected address
         const short = userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
         document.getElementById("walletAddress").innerText = "Connected: " + short;
-
         console.log("✅ Wallet Connected:", userAddress);
-
       } catch (err) {
         console.error(err);
         alert("Connection failed: " + err.message);
       }
     }
   </script>
-
 </body>
 </html>

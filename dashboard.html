@@ -1,0 +1,227 @@
+<!-- Save as dashboard.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>HEXAFI Dashboard</title>
+
+  <link rel="stylesheet" href="assets/dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
+
+  <style>
+    body{background:#0a1020;color:#e9eef7;font-family:Inter,system-ui,sans-serif;margin:0;padding:10px;text-align:center}
+    header img{width:80px;margin:10px 0}
+    .card{background:#101a33;border-radius:14px;padding:14px;margin:10px 0;box-shadow:0 4px 12px rgba(0,0,0,.5);text-align:left}
+    h3{color:#49a6ff;margin-top:0}
+    button{width:100%;padding:12px;background:#49a6ff;color:#fff;border:none;border-radius:10px;font-weight:bold;margin-top:8px}
+    .lvl{margin:6px 0;font-size:14px;border-bottom:1px solid #1b2750;padding-bottom:6px}
+  </style>
+</head>
+<body>
+  <header>
+    <img src="assets/hexafi-logo.png" alt="HEXAFI">
+    <h2>HEXAFI Portfolio Dashboard</h2>
+  </header>
+
+  <section class="card" id="globalStats">
+    <h3>🌍 Global Statistics</h3>
+    <p>Total Users: <span id="totalUsers">–</span></p>
+    <p>Total Deposits: <span id="totalDeposits">–</span></p>
+    <p>Total ROI Distributed: <span id="totalROI">–</span></p>
+    <p>Contract Balance: <span id="contractBal">–</span></p>
+  </section>
+
+  <section class="card" id="portfolio">
+    <h3>👤 My Portfolio</h3>
+    <p>Wallet: <span id="walletAddr">–</span></p>
+    <p>Total Deposit: <span id="userDeposit">–</span></p>
+    <p>ROI Balance: <span id="userROI">–</span></p>
+    <p>Income Wallet: <span id="userIncome">–</span></p>
+    <p>Last Claim: <span id="lastClaim">–</span></p>
+    <p>Directs: <span id="directCount">–</span></p>
+  </section>
+
+  <section class="card" id="teamTree">
+    <h3>🌳 Team Tree (up to 25 Levels)</h3>
+    <div id="treeLevels"><p>Connect wallet to load tree...</p></div>
+  </section>
+
+  <button id="connectBtn">Connect Wallet</button>
+  <p id="walletInfo">Not connected</p>
+
+<script>
+/* ---------- CONFIG ---------- */
+const ROI_CONTRACT = "0x2D0d070F56d4Fbc2FafB6a7B261dF348e309A563";
+const BSC_RPC = "https://bsc-dataseed.binance.org/";
+const walletConnectPackage = window.WalletConnectProvider;
+
+/* ---------- multi-wallet connect (same logic as index) ---------- */
+let app = { rawProvider:null, ethersProvider:null, signer:null, addr:null };
+async function unifiedConnect(){
+  try{
+    if(window.ethereum){
+      app.rawProvider = window.ethereum;
+      await app.rawProvider.request({method:"eth_requestAccounts"});
+      app.ethersProvider = new ethers.BrowserProvider(app.rawProvider);
+      app.signer = await app.ethersProvider.getSigner();
+      app.addr = await app.signer.getAddress();
+      return afterConnect();
+    }
+  }catch(e){ console.warn("Injected failed",e); }
+  try{
+    const wc = new walletConnectPackage.default({ rpc: {56: BSC_RPC}, chainId:56, qrcode:true });
+    await wc.enable();
+    app.rawProvider = wc;
+    app.ethersProvider = new ethers.BrowserProvider(app.rawProvider);
+    app.signer = await app.ethersProvider.getSigner();
+    app.addr = await app.signer.getAddress();
+    app.rawProvider.on && app.rawProvider.on("disconnect", ()=>onDisconnected());
+    return afterConnect();
+  }catch(e){ console.error("WC err", e); alert("Connection canceled"); }
+}
+
+function afterConnect(){
+  document.getElementById('walletInfo').textContent = app.addr.slice(0,6)+"..."+app.addr.slice(-4);
+  document.getElementById('walletAddr').textContent = app.addr.slice(0,6)+"..."+app.addr.slice(-4);
+  showToast("Connected: "+app.addr.slice(0,6)+"..."+app.addr.slice(-4));
+  // call analytics + portfolio
+  (async ()=>{ await loadGlobalStats(); await loadPortfolio(); })();
+  // refresh periodically
+  if (!window._hexafi_interval) window._hexafi_interval = setInterval(()=>loadGlobalStats(), 60000);
+}
+function onDisconnected(){ document.getElementById('walletInfo').textContent="Not connected"; showToast("Disconnected");}
+document.getElementById('connectBtn').onclick = unifiedConnect;
+
+function showToast(msg){ const t=document.createElement('div'); t.style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#0f223a;color:#fff;padding:8px 12px;border-radius:8px;z-index:9999"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3000); }
+
+/* ---------- read provider for events (RPC) ---------- */
+const readProvider = new ethers.JsonRpcProvider(BSC_RPC);
+
+/* ---------- GLOBAL STATS & 25-level tree (event-scanner) ---------- */
+async function loadGlobalStats(fromBlockCandidate){
+  showToast("Loading global stats...");
+  const eventAbi = [
+    "event Joined(address indexed user, address indexed upline, uint256 amount)",
+    "event ROIAdded(address indexed user, uint256 amount)",
+    "event Withdrawn(address indexed user, uint256 amount)",
+    "function contractBalance() view returns (uint256)"
+  ];
+  const contract = new ethers.Contract(ROI_CONTRACT, eventAbi, readProvider);
+  const latest = await readProvider.getBlockNumber();
+  const fromBlock = fromBlockCandidate && Number(fromBlockCandidate) > 0 ? Number(fromBlockCandidate) : Math.max(latest - 500000, 1);
+
+  // fetch logs
+  const joinedLogs = await contract.queryFilter(contract.filters.Joined(), fromBlock, latest);
+  const roiLogs = await contract.queryFilter(contract.filters.ROIAdded(), fromBlock, latest);
+  const wLogs = await contract.queryFilter(contract.filters.Withdrawn(), fromBlock, latest);
+
+  // build maps
+  const depositMap = {}, roiMap = {}, withdrawMap = {}, adj = {};
+  for(const ev of joinedLogs){
+    const user = ev.args.user.toLowerCase();
+    const upline = ev.args.upline.toLowerCase();
+    const amt = BigInt(ev.args.amount.toString());
+    depositMap[user] = (depositMap[user] || 0n) + amt;
+    if(upline !== "0x0000000000000000000000000000000000000000"){
+      adj[upline] = adj[upline] || [];
+      adj[upline].push(user);
+    }
+  }
+  for(const ev of roiLogs){
+    const user = ev.args.user.toLowerCase();
+    const amt = BigInt(ev.args.amount.toString());
+    roiMap[user] = (roiMap[user] || 0n) + amt;
+  }
+  for(const ev of wLogs){
+    const user = ev.args.user.toLowerCase();
+    const amt = BigInt(ev.args.amount.toString());
+    withdrawMap[user] = (withdrawMap[user] || 0n) + amt;
+  }
+
+  // totals
+  const totalUsersCount = new Set(joinedLogs.map(l=>l.args.user.toLowerCase())).size;
+  let totalDeposits = 0n; for(const v of Object.values(depositMap)) totalDeposits += v;
+  let totalROI = 0n; for(const v of Object.values(roiMap)) totalROI += v;
+  let totalWithdraw = 0n; for(const v of Object.values(withdrawMap)) totalWithdraw += v;
+  const contractBal = await contract.contractBalance();
+
+  // update UI
+  document.getElementById('totalUsers').textContent = totalUsersCount.toLocaleString();
+  document.getElementById('totalDeposits').textContent = ethers.formatUnits(totalDeposits,18) + " USDT";
+  document.getElementById('totalROI').textContent = ethers.formatUnits(totalROI,18) + " USDT";
+  document.getElementById('contractBal').textContent = ethers.formatUnits(contractBal,18) + " USDT";
+
+  // store global maps
+  window._hexafi_adj = adj;
+  window._hexafi_depositMap = depositMap;
+  window._hexafi_roiMap = roiMap;
+  window._hexafi_withdrawMap = withdrawMap;
+
+  // render 25 level tree for current user if connected
+  const treeDiv = document.getElementById('treeLevels');
+  treeDiv.innerHTML = "";
+  if(!window.app || !window.app.addr){
+    treeDiv.innerHTML = "<p>Connect wallet to see your level tree.</p>";
+    return;
+  }
+  const root = window.app.addr.toLowerCase();
+  const levels = [];
+  let current = [root];
+  const seen = new Set([root]);
+
+  for(let lvl=1; lvl<=25; lvl++){
+    const next = [];
+    for(const node of current){
+      const directs = (adj[node] || []);
+      for(const d of directs){
+        if(!seen.has(d)){ seen.add(d); next.push(d); }
+      }
+    }
+    if(next.length === 0) break;
+    levels.push(next);
+    current = next;
+  }
+
+  if(levels.length === 0){
+    treeDiv.innerHTML = "<p>No referrals found under your wallet (yet).</p>";
+  } else {
+    for(let i=0;i<levels.length;i++){
+      const lvl = i+1;
+      const nodes = levels[i];
+      let depositSum = 0n, roiSum = 0n, withdrawSum = 0n;
+      for(const a of nodes){
+        depositSum += (depositMap[a] || 0n);
+        roiSum += (roiMap[a] || 0n);
+        withdrawSum += (withdrawMap[a] || 0n);
+      }
+      const div = document.createElement('div');
+      div.className = 'lvl';
+      div.innerHTML = `<strong>Level ${lvl}</strong> — Users: ${nodes.length} | Deposit: ${ethers.formatUnits(depositSum,18)} USDT | ROI gen: ${ethers.formatUnits(roiSum,18)} USDT | ROI received: ${ethers.formatUnits(withdrawSum,18)} USDT`;
+      treeDiv.appendChild(div);
+    }
+  }
+  showToast("Global stats loaded");
+}
+
+/* ---------- single-user portfolio read (uses readProvider) ---------- */
+async function loadPortfolio(){
+  if(!window.app || !window.app.addr) return;
+  const userAddr = window.app.addr;
+  const roiUserAbi = [{"name":"users","type":"function","stateMutability":"view","inputs":[{"name":"","type":"address"}],"outputs":[{"name":"registered","type":"bool"},{"name":"upline","type":"address"},{"name":"totalDeposit","type":"uint256"},{"name":"lastClaimTime","type":"uint256"},{"name":"roiBalance","type":"uint256"},{"name":"incomeWallet","type":"uint256"}]}];
+  const contract = new ethers.Contract(ROI_CONTRACT, roiUserAbi, readProvider);
+  const user = await contract.users(userAddr);
+
+  document.getElementById('userDeposit').textContent = ethers.formatUnits(user.totalDeposit,18) + " USDT";
+  document.getElementById('userROI').textContent = ethers.formatUnits(user.roiBalance,18) + " USDT";
+  document.getElementById('userIncome').textContent = ethers.formatUnits(user.incomeWallet,18) + " USDT";
+  document.getElementById('lastClaim').textContent = new Date(Number(user.lastClaimTime)*1000).toLocaleString();
+
+  const adj = window._hexafi_adj || {};
+  const myDirects = (adj[userAddr.toLowerCase()] || []).length;
+  document.getElementById('directCount').textContent = myDirects;
+}
+</script>
+</body>
+</html>

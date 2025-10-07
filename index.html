@@ -1,114 +1,546 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HEXAFI Join Page</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HEXAFI Dashboard</title>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: "Poppins", sans-serif;
-      background: radial-gradient(circle at top, #0a0a24, #050512);
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      text-align: center;
-    }
-    .logo img {
-      width: 160px;
-      height: auto;
-      margin-bottom: 20px;
-    }
-    h1 {
-      color: #00b8ff;
-      font-size: 26px;
-      margin-bottom: 8px;
-    }
-    p.tagline {
-      color: #ccc;
-      font-size: 15px;
-      margin-bottom: 30px;
-    }
-    .connect-btn {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 12px 28px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 16px;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-    .connect-btn:hover {
-      background-color: #0096ff;
-      transform: scale(1.05);
-    }
-    #walletAddress {
-      margin-top: 20px;
-      font-size: 14px;
-      color: #ddd;
-      word-break: break-all;
-    }
-    footer {
-      position: fixed;
-      bottom: 12px;
-      width: 100%;
-      text-align: center;
-      font-size: 13px;
-      color: #666;
-    }
-  </style>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background: radial-gradient(circle at top, #0a0a24, #050512);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    header {
+      width: 100%;
+      text-align: center;
+      padding: 20px 10px;
+    }
+    header img { width: 120px; height: auto; }
+    h1 { color: #00b8ff; margin: 10px 0 0; }
+    p.tag { color: #aaa; margin-top: 4px; }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 15px;
+      width: 90%;
+      max-width: 900px;
+      margin-top: 30px;
+    }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+    }
+    .card h2 { font-size: 20px; margin-bottom: 8px; color: #00b8ff; }
+    .card p { font-size: 14px; color: #ccc; }
+
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+      margin-top: 10px;
+    }
+    button:hover { background: #0096ff; transform: scale(1.05); }
+
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      font-size: 13px;
+      color: #777;
+      text-align: center;
+    }
+    #withdrawAmt {
+      color: #333; /* Make text visible against dark background */
+    }
+  </style>
 </head>
 
 <body>
-  <!-- HEXAFI Logo -->
-  <div class="logo">
-    <img src="assets/hexafi-logo.png" alt="HEXAFI Logo" />
-  </div>
+  <header>
+    <img src="assets/hexafi-logo.png" alt="HEXAFI Logo" />
+    <h1>HEXAFI DApp Dashboard</h1>
+    <p class="tag">Decentralized ROI & Referral Platform (Demo Template)</p>
+  </header>
 
-  <h1>Welcome to HEXAFI</h1>
-  <p class="tagline">Decentralized Smart ROI & Referral System</p>
+  <button id="connectBtn">Connect Wallet</button>
+  <p id="walletAddress" style="margin-top:10px;"></p>
 
-  <button onclick="connectWallet()" class="connect-btn">Connect Wallet</button>
-  <p id="walletAddress"></p>
+  <div class="card-grid" id="dashboard" style="display:none;">
+    <div class="card">
+      <h2>Your Total Deposit</h2>
+      <p id="totalDeposit">--</p>
+    </div>
+    <div class="card">
+      <h2>Contract Balance</h2>
+      <p id="totalUsers">--</p>
+    </div>
+    <div class="card">
+      <h2>Your ROI Balance</h2>
+      <p id="roiBalance">--</p>
+      <button id="claimBtn">Claim ROI</button>
+    </div>
+    <div class="card">
+      <h2>Withdraw</h2>
+      <input id="withdrawAmt" type="number" placeholder="USDT Amount" style="width:80%;padding:8px;border-radius:8px;border:none;margin-bottom:8px;">
+      <button id="withdrawBtn">Withdraw</button>
+    </div>
+  </div>
 
-  <footer>Powered by HEXAFI Smart Contract on BSC</footer>
+  <footer>© 2025 HEXAFI – Demo Frontend Template</footer>
 
-  <!-- Ethers.js (Stable UMD build) -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
+  <script>
+    // --- CONTRACT CONFIGURATION ---
+    const CONTRACT_ADDRESS = "0x2D0d070F56d4Fbc2FafB6a7B261dF348e309A563"; // Your contract address
+    const CONTRACT_ABI = [
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "_upline",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "join",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "_usdt",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "_hxf",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "upline",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "Joined",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "ROIAdded",
+        "type": "event"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "_percent",
+            "type": "uint256"
+          }
+        ],
+        "name": "setROI",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "_user",
+            "type": "address"
+          }
+        ],
+        "name": "updateROI",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "_amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "withdraw",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "name": "Withdrawn",
+        "type": "event"
+      },
+      {
+        "inputs": [],
+        "name": "admin",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "_user",
+            "type": "address"
+          }
+        ],
+        "name": "calculateROI",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "contractBalance",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "directIncomePercent",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "hxf",
+        "outputs": [
+          {
+            "internalType": "contract IERC20",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "maxROI",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "minJoinAmount",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "roiPercent",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "usdt",
+        "outputs": [
+          {
+            "internalType": "contract IERC20",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "name": "users",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "registered",
+            "type": "bool"
+          },
+          {
+            "internalType": "address",
+            "name": "upline",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalDeposit",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lastClaimTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "roiBalance",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "incomeWallet",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "withdrawalCharge",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
+    // --- END OF CONTRACT CONFIGURATION ---
 
-  <script>
-    let provider, signer, userAddress;
+    let provider, signer, contract, userAddress;
 
-    async function connectWallet() {
-      if (!window.ethereum) {
-        alert(
-          "No crypto wallet detected. Please open this page in MetaMask, Trust Wallet or SafePal browser."
-        );
-        return;
-      }
+    const connectBtn = document.getElementById("connectBtn");
+    const walletAddressEl = document.getElementById("walletAddress");
+    const dash = document.getElementById("dashboard");
 
-      try {
-        provider = new ethers.BrowserProvider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        signer = await provider.getSigner();
-        userAddress = await signer.getAddress();
+    connectBtn.onclick = async () => {
+      try {
+        if (!window.ethereum) return alert("Please open in MetaMask / Trust Wallet browser");
 
-        const short =
-          userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
-        document.getElementById("walletAddress").innerText =
-          "Connected: " + short;
-        console.log("✅ Wallet Connected:", userAddress);
-      } catch (err) {
-        console.error(err);
-        alert("Connection failed: " + err.message);
-      }
-    }
-  </script>
+        provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
+        const short = userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
+        walletAddressEl.textContent = "Connected: " + short;
+
+        dash.style.display = "grid";
+        connectBtn.style.display = "none";
+
+        // Initialize the contract instance with the signer (for sending transactions)
+        contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+        
+        // Load dashboard data
+        loadDashboard();
+      } catch (err) {
+        console.error(err);
+        alert("Connection error: " + (err.message || err.reason));
+      }
+    };
+
+    // Ethers.js helper to format BigInt to a readable number (assuming 18 decimal places for tokens like USDT/BUSD)
+    const formatBigInt = (value, decimals = 18) => {
+      return parseFloat(ethers.formatUnits(value, decimals)).toFixed(2);
+    };
+
+    async function loadDashboard() {
+      if (!contract || !userAddress) return;
+
+      try {
+        // --- Fetching Data from Contract ---
+
+        // 1. User Data
+        const userData = await contract.users(userAddress);
+        
+        // 2. Contract Balance (Total Users in your template, changed to Contract Balance)
+        const cBalance = await contract.contractBalance();
+
+        // 3. Calculated ROI Balance (what the user can claim)
+        const calculatedROI = await contract.calculateROI(userAddress);
+
+
+        // --- Updating Dashboard UI ---
+
+        // Total Deposit (from userData.totalDeposit)
+        document.getElementById("totalDeposit").textContent = 
+          "$" + formatBigInt(userData.totalDeposit);
+        
+        // Contract Balance (from contractBalance)
+        document.getElementById("totalUsers").textContent = 
+          "$" + formatBigInt(cBalance);
+
+        // Your ROI Balance (from calculateROI)
+        document.getElementById("roiBalance").textContent = 
+          "$" + formatBigInt(calculatedROI + userData.roiBalance);
+
+
+      } catch (e) {
+        console.error("Error loading dashboard data:", e);
+        alert("Failed to load dashboard data. Check console for error.");
+      }
+    }
+
+    // --- Claim Functionality ---
+    document.getElementById("claimBtn").onclick = async () => {
+      if (!contract) return alert("Please connect your wallet first.");
+      try {
+        const tx = await contract.updateROI(userAddress); // This function calculates and adds ROI to roiBalance
+        document.getElementById("claimBtn").textContent = "Waiting for Tx...";
+        await tx.wait(); // Wait for the transaction to be confirmed
+        alert("ROI Updated successfully! Your funds are now in your ROI Balance for withdrawal.");
+        loadDashboard(); // Reload data
+      } catch (error) {
+        console.error("Claim/Update failed:", error);
+        alert("Transaction failed. Check console for details.");
+      } finally {
+        document.getElementById("claimBtn").textContent = "Claim ROI";
+      }
+    };
+
+    // --- Withdraw Functionality ---
+    document.getElementById("withdrawBtn").onclick = async () => {
+      if (!contract) return alert("Please connect your wallet first.");
+      const amountInput = document.getElementById("withdrawAmt").value;
+      
+      if (!amountInput || parseFloat(amountInput) <= 0) return alert("Please enter a valid amount.");
+
+      try {
+        // Ethers.js utility to convert decimal string to BigInt with 18 decimals
+        const amountToSend = ethers.parseUnits(amountInput, 18);
+        
+        const tx = await contract.withdraw(amountToSend);
+        document.getElementById("withdrawBtn").textContent = "Waiting for Tx...";
+        await tx.wait(); // Wait for the transaction to be confirmed
+        alert("Withdrawal successful! Check your wallet.");
+        document.getElementById("withdrawAmt").value = ''; // Clear input
+        loadDashboard(); // Reload data
+      } catch (error) {
+        console.error("Withdrawal failed:", error);
+        alert("Withdrawal failed. Check console for details. (e.g., insufficient balance)");
+      } finally {
+        document.getElementById("withdrawBtn").textContent = "Withdraw";
+      }
+    };
+  </script>
 </body>
 </html>
